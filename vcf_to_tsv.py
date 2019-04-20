@@ -11,6 +11,10 @@ def parse_args():
     parser.add_argument("-n", "--normal", type=str, dest="normal", help = "Normal Sample Label", default=None)
     parser.add_argument("-c", "--caller", type = str, dest="caller", help = "The caller to label calls with.", required=True)
     parser.add_argument("-v", "--vcf", type = str, dest="vcf", help = "A variant call file to transform.", required=True)
+    
+    ## parser.add_argument("-a", "--annotations",
+    ## type=str, dest="annotations",
+    ## help="A file containing annotations to apply to ALL VARIANTS, where each line in the file is KEY:VALUE")
 
     return parser.parse_args()
 
@@ -22,11 +26,13 @@ def print_header(header_d):
 
 def make_header_index_d(header):
     d = defaultdict(int)
+    inverted_d = defaultdict(str)
     index = 0
     for h in header.strip().split("\t"):
         d[h] = index
         index += 1
-    return d
+        inverted_d[index] = h
+    return d, inverted_d
 
 
 if __name__ == "__main__":
@@ -36,6 +42,7 @@ if __name__ == "__main__":
 ## INFO:<key>, FORMAT:<key>, etc
     header_d = defaultdict(str)
     header_index_d = defaultdict(int)
+    info_flags = defaultdict(str)
     
     args = parse_args()
     
@@ -61,6 +68,8 @@ if __name__ == "__main__":
         if line.startswith("##"):
             if "##INFO" in line:
                 idVal = [i for i in line.replace("##INFO=", "").strip("<>").split(",") if "ID" in i][0].split("=")[1]
+                if "Type=Flag" in line:
+                    info_flags[idVal] = ""
                 header_d[idVal] = "INFO:" + idVal
             elif "##FORMAT" in line:
                 idVal = [i for i in line.replace("##FORMAT=", "").strip("<>").split(",") if "ID" in i][0].split("=")[1]
@@ -87,16 +96,38 @@ if __name__ == "__main__":
                 ## break out our info fields
                 ## These have KEY=VALUE style, so easier to grab them
                 infos = tokens[7].strip().split(";")
-                ## Special case: handle flag vals, which, when split by "=",
-                ## are only one element
+                ## Remember 1 special case:
+                ## handle flag vals, which, when split by "=",
+                ## are only one element, and may not be present.
+                ## We label these like booleans.
+                ## everything else is a stringifiable value
+                flags = defaultdict(bool)
+                for i in infos:
+                    splits = i.split("=")
+                    rawKey = splits[0]
+                    key = ":".join(["INFO", rawKey])
+                    if len(splits) > 1:
+                        val = splits[1]
+                        outputs[header_index_d[key]] = val
+                    else:
+                        flags[key] = True
+                for i in info_flags:
+                    if key in flags:
+                        outputs[header_index_d[key]] = "TRUE"
+                    else:
+                        outputs[header_index_d[key]] = "FALSE"
 
+                ## Fill missing values
+                for i in inverted_header_index_d:
+                    if i not in outputs:
+                        outputs[i] = "NA"
 
 
                 ## Lastly, print our new TSV style line
                 print("\t".join(outputs[i] for i in sorted(outputs)))
             else:
                 header = print_header(header_d)
-                header_index_d = make_header_index_d(header)
+                header_index_d, inverted_header_index_d = make_header_index_d(header)
                 headerTripped = True
 
     ifi.close()
