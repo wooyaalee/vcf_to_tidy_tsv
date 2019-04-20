@@ -3,7 +3,7 @@ from collections import defaultdict
 import gzip
 import argparse
 
-base_header = "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tTUMOR\tNORMAL\tCALLER\t"
+base_header = "CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tTUMOR\tNORMAL\tCALLER"
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -20,18 +20,18 @@ def parse_args():
 
 ## #CHROM POS REF ALT TUMOR NORMAL CALLER FORMAT:<key> ... INFO:<key> ...
 def print_header(header_d): 
-    h = base_header + "\t".join(sorted([header_d[x] for x in header_d]))
-    print(h)
+    h = base_header + "\t" + "\t".join(sorted([header_d[x] for x in header_d]))
+    print( "#" + h)
     return h
 
 def make_header_index_d(header):
     d = defaultdict(int)
     inverted_d = defaultdict(str)
     index = 0
-    for h in header.strip().split("\t"):
+    for h in header.strip().strip("#").split("\t"):
         d[h] = index
-        index += 1
         inverted_d[index] = h
+        index += 1
     return d, inverted_d
 
 
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     args = parse_args()
     
     callerLabel = args.caller
-    pair = args.vcf.split(".")[0]
+    pair = args.vcf.strip("./").split(".")[0]
     tumorLabel = pair
     if args.tumor is not None:
         tumorLabel = args.tumor
@@ -69,11 +69,11 @@ if __name__ == "__main__":
             if "##INFO" in line:
                 idVal = [i for i in line.replace("##INFO=", "").strip("<>").split(",") if "ID" in i][0].split("=")[1]
                 if "Type=Flag" in line:
-                    info_flags[idVal] = ""
-                header_d[idVal] = "INFO:" + idVal
+                    info_flags["INFO" + idVal] = ""
+                header_d["INFO:" + idVal] = "INFO:" + idVal
             elif "##FORMAT" in line:
                 idVal = [i for i in line.replace("##FORMAT=", "").strip("<>").split(",") if "ID" in i][0].split("=")[1]
-                header_d[idVal] = "FORMAT:" + idVal
+                header_d["FORMAT:" + idVal] = "FORMAT:" + idVal
         else:
             if headerTripped:
                 tokens = line.strip().split("\t")
@@ -124,6 +124,12 @@ if __name__ == "__main__":
 
 
                 ## Lastly, print our new TSV style line
+                # print("HEADER", header_d)
+                # print("INDEX", header_index_d)
+                # print("INVERTED", inverted_header_index_d)
+                # print("OUTPUTS", outputs)
+                # print("TOKENS", tokens)
+                # exit(1)
                 print("\t".join(outputs[i] for i in sorted(outputs)))
             else:
                 header = print_header(header_d)
