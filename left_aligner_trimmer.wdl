@@ -17,9 +17,9 @@ task LeftAlignAndTrimTask{
     }
 
     runtime{
-        docker : "erictdawson/gatk"
+        docker : "erictdawson/gatk:3.8-1-0"
         cpu : 1
-        memory : "3.6 GB"
+        memory : "9 GB"
         disks : "local-disk " + diskGB + " HDD"
         preemptible : 3
     }
