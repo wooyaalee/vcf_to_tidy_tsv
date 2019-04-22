@@ -10,7 +10,7 @@ task LeftAlignAndTrimTask{
     String outbase = basename(basename(inputVCF, ".gz"), ".vcf")
 
     command{
-        gatk -T LeftAlignAndTrimVariants \ 
+        gatk-lite -T LeftAlignAndTrimVariants \ 
         -v ${inputVCF} \
         -R ${inputFA}
         -O ${outbase}.leftAlignedAndTrimmed.vcf
