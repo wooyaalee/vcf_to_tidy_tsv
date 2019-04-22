@@ -35,6 +35,37 @@ def make_header_index_d(header):
     return d, inverted_d
 
 
+## Makes a dictionary of index->sample name,
+## so that we can label our format fields per sample
+def count_formats(chromLine):
+    sample_d = defaultdict(str)
+    tokens = chromLine.strip().split("\t")
+    numSamples = len(tokens) - 8
+    count = 0
+    if numSamples == 0:
+        return sample_d
+    for i in tokens[9:]:
+        sample_d[count] = i
+        count += 1
+    return sample_d
+
+
+## Duplicates format columns, so that 
+## they're represented once for each sample
+## Their final form will look like:
+## FORMAT:<key>:<sample>
+def correct_header_format(header_d, sample_d):
+    reheader_d = defaultdict(str)
+    for h in header_d:
+        if "FORMAT" in h:
+            for i in sample_d:
+                mod = h + ":" + sample_d[i]
+                reheader_d[mod] = mod
+        else:
+            reheader_d[h] = h
+    return reheader_d
+
+
 if __name__ == "__main__":
     
 ## We need to tweak the way our header works a bit
@@ -60,6 +91,8 @@ if __name__ == "__main__":
 
     ifi = None
 
+    sample_d = None
+
     if ".gz" in args.vcf:
         ifi = gzip.open(args.vcf, "r")
     else:
@@ -69,11 +102,13 @@ if __name__ == "__main__":
             if "##INFO" in line:
                 idVal = [i for i in line.replace("##INFO=", "").strip("<>").split(",") if "ID" in i][0].split("=")[1]
                 if "Type=Flag" in line:
-                    info_flags["INFO" + idVal] = ""
+                    info_flags["INFO:" + idVal] = ""
                 header_d["INFO:" + idVal] = "INFO:" + idVal
             elif "##FORMAT" in line:
                 idVal = [i for i in line.replace("##FORMAT=", "").strip("<>").split(",") if "ID" in i][0].split("=")[1]
                 header_d["FORMAT:" + idVal] = "FORMAT:" + idVal
+        elif line.startswith("#CHROM"):
+            sample_d = count_formats(line)
         else:
             if headerTripped:
                 tokens = line.strip().split("\t")
@@ -112,26 +147,46 @@ if __name__ == "__main__":
                     else:
                         flags[key] = True
                 for i in info_flags:
-                    if key in flags:
+                    if i in flags:
                         outputs[header_index_d[key]] = "TRUE"
                     else:
                         outputs[header_index_d[key]] = "FALSE"
 
+
+
+                ## Format field time.
+                ## This counter tracks the number of samples
+                ## that are in the VCF, so that we can have a fighting
+                ## shot at mapping them back later.
+                SAMPLE_FIELD_COUNTER = 0
+                format_tags = tokens[8].strip().split(":")
+                if len(tokens) > 9 and sample_d is not None:
+                    for i in tokens[9:]:
+                        fields = i.split(":")
+                        #print(format_tags)
+                        #print(fields)
+                        for f in range(0, len(fields)):
+                            key = "FORMAT:" + format_tags[f] + ":" + sample_d[SAMPLE_FIELD_COUNTER]
+                            outputs[header_index_d[key]] = fields[f]
+                        SAMPLE_FIELD_COUNTER += 1
+                        
                 ## Fill missing values
                 for i in inverted_header_index_d:
                     if i not in outputs:
                         outputs[i] = "NA"
 
 
-                ## Lastly, print our new TSV style line
                 # print("HEADER", header_d)
                 # print("INDEX", header_index_d)
                 # print("INVERTED", inverted_header_index_d)
                 # print("OUTPUTS", outputs)
                 # print("TOKENS", tokens)
                 # exit(1)
+                
+                ## Lastly, print our new TSV style line
                 print("\t".join(outputs[i] for i in sorted(outputs)))
             else:
+                header_d = correct_header_format(header_d, sample_d)
                 header = print_header(header_d)
                 header_index_d, inverted_header_index_d = make_header_index_d(header)
                 headerTripped = True
