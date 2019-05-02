@@ -38,7 +38,7 @@ workflow GATKLeftAlignAndTrim{
     File inputFAI
     File inputFADICT
 
-    Int diskGB = ceil(size(inputVCF, "GB") + size(inputTBI, "GB")) + 20
+    Int diskGB = ceil(size(inputVCF, "GB") + size(inputTBI, "GB")) + 50
 
     call LeftAlignAndTrimTask{
         input:
