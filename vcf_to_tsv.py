@@ -3,14 +3,21 @@ from collections import defaultdict
 import gzip
 import argparse
 
-base_header = "CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tTUMOR\tNORMAL\tCALLER"
+base_header = "CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tTUMOR\tNORMAL\tCALLER\tSAMPLE"
+#base_header = "CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tCALLER"
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-t", "--tumor", type=str, dest="tumor", help = "Tumor Sample Label", default=None)
-    parser.add_argument("-n", "--normal", type=str, dest="normal", help = "Normal Sample Label", default=None)
-    parser.add_argument("-c", "--caller", type = str, dest="caller", help = "The caller to label calls with.", required=True)
-    parser.add_argument("-v", "--vcf", type = str, dest="vcf", help = "A variant call file to transform.", required=True)
+    parser.add_argument("-t", "--tumor", type=str,
+            dest="tumor", help = "Tumor Sample Label", default=None)
+    parser.add_argument("-n", "--normal", type=str,
+            dest="normal", help = "Normal Sample Label", default=None)
+    parser.add_argument("-s", "--sample", type=str,
+            dest="sample", help = "A string to use in the sample field.", default=None)
+    parser.add_argument("-c", "--caller", type = str,
+            dest="caller", help = "The caller to label calls with.", required=False, default="CALLER")
+    parser.add_argument("-v", "--vcf", type = str,
+            dest="vcf", help = "A variant call file to transform.", required=True)
     
     ## parser.add_argument("-a", "--annotations",
     ## type=str, dest="annotations",
@@ -94,7 +101,7 @@ if __name__ == "__main__":
     sample_d = None
 
     if ".gz" in args.vcf:
-        ifi = gzip.open(args.vcf, "r")
+        ifi = gzip.open(args.vcf, "rt")
     else:
         ifi = open(args.vcf, "r")
     for line in ifi:
@@ -102,11 +109,11 @@ if __name__ == "__main__":
             if "##INFO" in line:
                 idVal = [i for i in line.replace("##INFO=", "").strip("<>").split(",") if "ID" in i][0].split("=")[1]
                 if "Type=Flag" in line:
-                    info_flags["INFO:" + idVal] = ""
-                header_d["INFO:" + idVal] = "INFO:" + idVal
+                    info_flags["INFO:" + args.caller + ":" + idVal] = ""
+                header_d["INFO:" + idVal] = "INFO:" + args.caller + ":" + idVal
             elif "##FORMAT" in line:
                 idVal = [i for i in line.replace("##FORMAT=", "").strip("<>").split(",") if "ID" in i][0].split("=")[1]
-                header_d["FORMAT:" + idVal] = "FORMAT:" + idVal
+                header_d["FORMAT:" + idVal] = "FORMAT:" + args.caller + ":" + idVal
         elif line.startswith("#CHROM"):
             sample_d = count_formats(line)
         else:
@@ -140,7 +147,7 @@ if __name__ == "__main__":
                 for i in infos:
                     splits = i.split("=")
                     rawKey = splits[0]
-                    key = ":".join(["INFO", rawKey])
+                    key = ":".join(["INFO", args.caller, rawKey])
                     if len(splits) > 1:
                         val = splits[1]
                         outputs[header_index_d[key]] = val
@@ -166,7 +173,7 @@ if __name__ == "__main__":
                         #print(format_tags)
                         #print(fields)
                         for f in range(0, len(fields)):
-                            key = "FORMAT:" + format_tags[f] + ":" + sample_d[SAMPLE_FIELD_COUNTER]
+                            key = "FORMAT:" + args.caller + ":" + format_tags[f] + ":" + sample_d[SAMPLE_FIELD_COUNTER]
                             outputs[header_index_d[key]] = fields[f]
                         SAMPLE_FIELD_COUNTER += 1
                         
