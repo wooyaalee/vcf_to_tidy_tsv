@@ -9,7 +9,13 @@ library(readr)
 ## Future feature: arbitrary field setting with a -C (custom) flag.
 
 read_maf <- function(fi){
-    return(readr::read_tsv(fi, col_types=cols(Chromosome=col_character())))
+    return(readr::read_tsv(fi,
+                           comment="#",
+                           col_types=cols(Chromosome=col_character(),
+                                          HGNC_Previous_Name=col_character()),
+                           skip_empty_rows=TRUE,
+                           trim_ws=TRUE
+                           ))
 }
 
 label_maf <- function(x, var_name, var_value){
@@ -22,12 +28,16 @@ GetoptLong(
     "tumor=s", "The Tumor_Sample_Barcode to add.",
     "normal=s", "The Normal_Sample_Barcode to add.",
     "study=s", "The study field value to add.",
-    "CUSTOM=s%", "A comma-separated list of custom-key-values to add."
+    "caller=s", "The variant caller used to generator the MAF",
+    "output=s", "An output file name to write the labeled maf to."
+    #"CUSTOM=s%", "A comma-separated list of custom-key-values to add."
 )
 
 maf <- read_maf(maf)
 maf <- label_maf(maf, "Tumor_Sample_Barcode", tumor)
-maf <- label_maf(maf, "Normal_Sample_Barcode", normal)
+maf <- label_maf(maf, "Matched_Norm_Sample_Barcode", normal)
 maf <- label_maf(maf, "Study", study)
+maf <- label_maf(maf, "caller", caller)
 
-cat(readr::format_tsv(x))
+#cat(readr::format_tsv(maf))
+write_tsv(maf, output)
