@@ -366,6 +366,9 @@ set_caller_column <- function(x){
     if (! "strelka2" %in% names(x)){
         x <- x %>% mutate(strelka2=0)
     }
+    if (! "svaba" %in% names(x)){
+        x <- x %>% mutate(svaba=0)
+    }
 
     y <- x %>%
     mutate(caller = 
@@ -374,6 +377,7 @@ set_caller_column <- function(x){
                      strelka2 == 1 ~ "strelka2",
                      mutect1 == 1 ~ "mutect1",
                      mutect2 == 1 ~ "mutect2",
+               svaba == 1 ~ "svaba",
                      TRUE ~ NA_character_
                      )
            )
